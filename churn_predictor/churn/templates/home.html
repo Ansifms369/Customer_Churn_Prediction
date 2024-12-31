@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Churn Prediction</title>
+    <script>
+        // Function to get JWT token by logging in
+        async function getToken(username, password) {
+            const response = await fetch('http://127.0.0.1:8000/api/token/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username: username, password: password })
+            });
+
+            if (!response.ok) {
+                throw new Error('Authentication failed');
+            }
+
+            const data = await response.json();
+            return data.access; // Return the access token
+        }
+
+        // Store JWT token in localStorage
+        function storeToken(token) {
+            localStorage.setItem('jwt_token', token); // Store token in localStorage
+        }
+
+        // Retrieve JWT token from localStorage
+        function getStoredToken() {
+            return localStorage.getItem('jwt_token');  // Retrieve token from localStorage
+        }
+
+        // Handle file upload and churn prediction
+        document.getElementById('upload-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            // Get JWT token
+            let token = getStoredToken();
+            if (!token) {
+                alert('Please log in to use the prediction feature.');
+                return;
+            }
+
+            const file = document.getElementById('json-file').files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const jsonData = JSON.parse(e.target.result);
+
+                // Send POST request with the JSON data and token for prediction
+                fetch('http://127.0.0.1:8000/predict/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer $eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM1NTY5MjE4LCJpYXQiOjE3MzU1Njg5MTgsImp0aSI6IjdhOWJkYTExNmY3ODQyMzdhYTNmNzA2ODAyZDcwNDZlIiwidXNlcl9pZCI6MX0.oiLdVVNcMqZLBGV7MToQNQoMD-P-3KlABHA9ekUO-Uk`,  // Include JWT token in Authorization header
+                    },
+                    body: JSON.stringify(jsonData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('prediction-result').innerHTML = `<p>Error: ${data.error}</p>`;
+                    } else {
+                        document.getElementById('prediction-result').innerHTML = `<p>Customer ID: ${data.customer_id}</p><p>Churn Prediction: ${data.churn_prediction ? 'Churned' : 'Not Churned'}</p>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('prediction-result').innerHTML = `<p>Error occurred while predicting churn.</p>`;
+                });
+            };
+
+            reader.readAsText(file);  // Read the file as text (JSON)
+        });
+
+        // Function to handle login and get the token
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const token = await getToken(username, password);
+                storeToken(token);  // Store the token in localStorage
+                alert('Login successful!');
+                document.getElementById('login-form').style.display = 'none';  // Hide login form after success
+                document.getElementById('upload-form').style.display = 'block';  // Show upload form after login
+            } catch (error) {
+                alert('Login failed. Please check your credentials.');
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Customer Churn Prediction</h1>
+
+    <!-- Login form -->
+    <div id="login-form">
+        <h2>Login</h2>
+        <label for="username">Username:</label>
+        <input type="text" id="username" required><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" required><br><br>
+        <button onclick="login()">Login</button>
+    </div>
+
+    <!-- Upload and prediction form -->
+    <div id="upload-form" style="display: none;">
+        <h2>Upload JSON File for Churn Prediction</h2>
+        <form>
+            <input type="file" id="json-file" accept=".json" required><br><br>
+            <button type="submit">Upload and Predict</button>
+        </form>
+        <div id="prediction-result"></div>
+    </div>
+
+</body>
+</html>
