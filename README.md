@@ -36,6 +36,7 @@ Steps
 Clone the repository:
 
 git clone https://github.com/Ansifms369/Customer_Churn_Prediction.git
+
 cd Customer_Churn_Prediction
 
 Set up a virtual environment:
